@@ -47,7 +47,7 @@ function incrementByAmount(value) {
 // Dispatching actions every 4 seconds
 setInterval(() => {
   store.dispatch(incrementByAmount(4));
-}, 2000);
+}, 3000);
 
 // setInterval(() => {
 //   store.dispatch({ type: "incrementByAmount", payload: 4 });
