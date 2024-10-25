@@ -1,57 +1,73 @@
+// Import necessary libraries
 import { createStore, applyMiddleware } from "redux";
-import logger from "redux-logger";
+import thunk from "redux-thunk"; // Import as named import
+import logger from "redux-logger"; // Ensure logger is imported correctly
 import axios from "axios";
-const inc = "increment";
-const dec = "decrement";
-const incByAmnt = "incrementByAmount";
-// Create store with middleware
-const store = createStore(reducer, applyMiddleware(logger.default));
-const history = [];
 
-// Corrected reducer logic
+// Action Types
+const INC = "increment";
+const DEC = "decrement";
+const INIT = "init";
+const INC_BY_AMNT = "incrementByAmount";
+
+// Reducer
 function reducer(state = { amount: 1 }, action) {
-  if (action.type === inc) {
-    return { amount: state.amount + 1 };
+  switch (action.type) {
+    case INIT:
+      return { amount: action.payload };
+    case INC:
+      return { amount: state.amount + 1 };
+    case DEC:
+      return { amount: state.amount - 1 };
+    case INC_BY_AMNT:
+      return { amount: state.amount + action.payload };
+    default:
+      return state;
   }
-  if (action.type === dec) {
-    return { amount: state.amount - 1 };
-  }
-
-  if (action.type === incByAmnt) {
-    return { amount: state.amount + action.payload };
-  }
-
-  return state;
 }
 
-// action creators
+// Create store with middleware
+const store = createStore(
+  reducer,
+  applyMiddleware(logger, thunk) // Ensure logger and thunk are valid functions
+);
+
+// Action Creators
+const initUser = () => async (dispatch) => {
+  try {
+    const { data } = await axios.get("http://localhost:3000/accounts/1");
+    dispatch({ type: INIT, payload: data.amount });
+  } catch (error) {
+    console.error("Error fetching user data:", error.message);
+  }
+};
 
 function increment() {
-  return { type: inc };
+  return { type: INC };
 }
 
 function decrement() {
-  return { type: dec };
+  return { type: DEC };
 }
 
 function incrementByAmount(value) {
-  return { type: incByAmnt, payload: value };
+  return { type: INC_BY_AMNT, payload: value };
 }
 
-// Global state
+// Call the function to fetch the user
+store.dispatch(initUser()); // Dispatch as a thunk action
+
+// Dispatching actions every 4 seconds (optional, for testing)
+setTimeout(() => {
+  store.dispatch(initUser()); // Call again after 4 seconds if needed
+}, 4000);
+
+// Uncomment to log the state changes to the history array
+// const history = [];
 // store.subscribe(() => {
-//   history.push(store.getState()); // Push the new state to history array every time the state changes.
+//   history.push(store.getState());
 //   console.log(store.getState());
 // });
 
-// Dispatching actions every 4 seconds
-setInterval(() => {
-  store.dispatch(incrementByAmount(4));
-}, 3000);
-
-// setInterval(() => {
-//   store.dispatch({ type: "incrementByAmount", payload: 4 });
-// }, 4000);
-
-// Initial dispatch to test
-// store.dispatch({ type: "increment" });
+// Initial dispatch to test increment action
+// store.dispatch(increment());
