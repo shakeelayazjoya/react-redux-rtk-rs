@@ -1,73 +1,104 @@
-// Import necessary libraries
-import { createStore, applyMiddleware } from "redux";
-import thunk from "redux-thunk"; // Import as named import
-import logger from "redux-logger"; // Ensure logger is imported correctly
+import { createStore, applyMiddleware, combineReducers } from "redux";
+import logger from "redux-logger";
+import thunk from "redux-thunk";
 import axios from "axios";
 
-// Action Types
-const INC = "increment";
-const DEC = "decrement";
-const INIT = "init";
-const INC_BY_AMNT = "incrementByAmount";
+//action name constants
+// const init = 'account/init';
+const inc = "account/increment";
+const dec = "account/decrement";
+const incByAmt = "account/incrementByAmount";
+const getAccUserPending = "account/getUser/pending";
+const getAccUserFulFilled = "account/getUser/fulfilled";
+const getAccUserRejected = "account/getUser/rejected";
+const incBonus = "bonus/increment";
+//store
+const store = createStore(
+  combineReducers({
+    account: accountReducer,
+    bonus: bonusReducer,
+  }),
+  applyMiddleware(logger.default, thunk.default)
+);
 
-// Reducer
-function reducer(state = { amount: 1 }, action) {
+const history = [];
+
+//reducer
+
+function accountReducer(state = { amount: 1 }, action) {
   switch (action.type) {
-    case INIT:
-      return { amount: action.payload };
-    case INC:
+    case getAccUserFulFilled:
+      return { amount: action.payload, pending: false };
+    case getAccUserRejected:
+      return { ...state, error: action.error, pending: false };
+    case getAccUserPending:
+      return { ...state, pending: true };
+    case inc:
       return { amount: state.amount + 1 };
-    case DEC:
+    case dec:
       return { amount: state.amount - 1 };
-    case INC_BY_AMNT:
+    case incByAmt:
       return { amount: state.amount + action.payload };
     default:
       return state;
   }
 }
 
-// Create store with middleware
-const store = createStore(
-  reducer,
-  applyMiddleware(logger, thunk) // Ensure logger and thunk are valid functions
-);
-
-// Action Creators
-const initUser = () => async (dispatch) => {
-  try {
-    const { data } = await axios.get("http://localhost:3000/accounts/1");
-    dispatch({ type: INIT, payload: data.amount });
-  } catch (error) {
-    console.error("Error fetching user data:", error.message);
+function bonusReducer(state = { points: 0 }, action) {
+  switch (action.type) {
+    case incBonus:
+      return { points: state.points + 1 };
+    case incByAmt:
+      if (action.payload >= 100) return { points: state.points + 1 };
+    default:
+      return state;
   }
-};
-
-function increment() {
-  return { type: INC };
 }
 
-function decrement() {
-  return { type: DEC };
-}
+//global state
 
-function incrementByAmount(value) {
-  return { type: INC_BY_AMNT, payload: value };
-}
-
-// Call the function to fetch the user
-store.dispatch(initUser()); // Dispatch as a thunk action
-
-// Dispatching actions every 4 seconds (optional, for testing)
-setTimeout(() => {
-  store.dispatch(initUser()); // Call again after 4 seconds if needed
-}, 4000);
-
-// Uncomment to log the state changes to the history array
-// const history = [];
 // store.subscribe(() => {
 //   history.push(store.getState());
-//   console.log(store.getState());
+//   console.log(history);
 // });
 
-// Initial dispatch to test increment action
-// store.dispatch(increment());
+//Action creators
+function getUserAccount(id) {
+  return async (dispatch, getState) => {
+    try {
+      dispatch(getAccountUserPending());
+      const { data } = await axios.get(`http://localhost:3000/accounts/${id}`);
+      dispatch(getAccountUserFulFilled(data.amount));
+    } catch (error) {
+      dispatch(getAccountUserRejected(error.message));
+    }
+  };
+}
+function getAccountUserFulFilled(value) {
+  return { type: getAccUserFulFilled, payload: value };
+}
+function getAccountUserRejected(error) {
+  return { type: getAccUserRejected, error: error };
+}
+function getAccountUserPending() {
+  return { type: getAccUserPending };
+}
+
+function increment() {
+  return { type: inc };
+}
+function decrement() {
+  return { type: dec };
+}
+function incrementByAmount(value) {
+  return { type: incByAmt, payload: value };
+}
+function incrementBonus(value) {
+  return { type: incBonus };
+}
+
+setTimeout(() => {
+  store.dispatch(getUserAccount(2));
+  // store.dispatch(incrementByAmount(200))
+  // store.dispatch(incrementBonus());
+}, 2000);
